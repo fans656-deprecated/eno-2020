@@ -19,7 +19,6 @@ def check_me(request):
     if token:
         try:
             user = jwt.decode(token, conf.PUBKEY, algorithm='RS512')
-            print(user)
             if user.get('username') == 'fans656':
                 return
         except Exception:
