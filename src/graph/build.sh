@@ -1,3 +1,3 @@
 #!/bin/sh
-IMAGE_NAME=auth.eno.zone
+IMAGE_NAME=graph.fme
 docker build -t $IMAGE_NAME .
