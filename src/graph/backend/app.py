@@ -5,6 +5,7 @@ import subprocess
 import jwt
 from fastapi import FastAPI, HTTPException
 from starlette.requests import Request
+from starlette.staticfiles import StaticFiles
 
 from model import Model
 import conf
@@ -64,3 +65,6 @@ def reset(request: Request):
     check_me(request)
     cmd = 'git stash && git stash drop'
     subprocess.run(cmd, shell=True, cwd=conf.DATA_DIR)
+
+
+app.mount('/', StaticFiles(directory='../frontend/out', html=True))
