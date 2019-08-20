@@ -1,4 +1,6 @@
+#!/bin/sh
+IMAGE_NAME=auth.eno.zone-frontend
 DATA_OUT=/data/out
 CODE_OUT=/code/out
-docker build -t auth.eno.zone .
-docker run -d --rm -v $DATA_OUT:$CODE_OUT cp $CODE_OUT $DATA_OUT
+docker build -t $IMAGE_NAME .
+docker run -d --rm -v $PWD:$CODE_OUT $IMAGE_NAME cp -r $CODE_OUT $DATA_OUT
