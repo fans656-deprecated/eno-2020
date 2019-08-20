@@ -1,0 +1,6 @@
+import os
+
+
+DATA_DIR = os.path.abspath(os.path.join(os.path.expanduser('~'), 'eno-activities'))
+DATA_JSON = os.path.join(DATA_DIR, 'data.json')
+NOTES_DIR = os.path.join(DATA_DIR, 'notes')

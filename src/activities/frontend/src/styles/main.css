@@ -1,0 +1,42 @@
+.mono {
+  font-family: 'Consolas', monospace;
+}
+
+.horz {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.vert {
+  display: flex;
+  flex-direction: column;
+  flex-wrap: wrap;
+}
+
+body {
+  display: flex;
+}
+
+#__next {
+  flex: 1;
+}
+
+.layout-content {
+  display: flex;
+}
+
+.layout-content > * {
+  display: flex;
+  flex: 1;
+}
+
+.page {
+  flex: 1;
+}
+
+#vis-container {
+  border: 1px solid #ccc;
+}
+#vis-container:focus {
+  border: 1px solid blue;
+}
