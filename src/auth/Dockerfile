@@ -4,6 +4,7 @@ RUN pip install uvicorn
 RUN pip install fastapi
 RUN pip install pyjwt
 RUN pip install aiofiles
+RUN pip install cryptography
 COPY ./backend /code
 COPY ./frontend/out /frontend/out
 COPY ./secret /code/secret

@@ -20,7 +20,6 @@ class App extends Component {
 
   render() {
     const user = this.state.user;
-    console.log('user', user);
     return (
       <Layout className="App"
         style={{
@@ -64,7 +63,6 @@ class App extends Component {
   }
 
   renderUserInfo = (user) => {
-    console.log('renderUserInfo', user);
     return (
       <div>
         <h1>{user.username}</h1>
