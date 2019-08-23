@@ -4,7 +4,7 @@ from fastapi import FastAPI, Path, Query, Body, HTTPException
 from starlette.requests import Request
 from starlette.responses import StreamingResponse
 
-from fs import Node, File, Dir, NodeType
+from node import Node, File, Dir, NodeType
 from utils import get_user
 
 
@@ -15,9 +15,9 @@ app = FastAPI(title='stome')
 async def download_file(path, request: Request):
     f = File(path)
     ensure_existed(f)
-    ensure_accessible(f, request)
-    ensure_not_type(f, 'dir')
-    return StreamingResponse(f.stream(), media_type=f.mime)
+    ensure_not_type(f, NodeType.Dir)
+    inode = f.inode
+    return StreamingResponse(inode.stream(), media_type=inode.mime)
 
 
 @app.put('/api/file/{path:path}')
@@ -35,13 +35,13 @@ async def upload_file(
     ensure_not_type(f, NodeType.Dir)
     if f.existed and not force:
         raise HTTPException(409, 'Existed')
-    await f.create(request)
+    await f.create(request.stream())
 
 
 @app.delete('/api/file/{path:path}')
-def delete_file(path: str = Path(...)):
+def delete_file(path):
     ensure_me(request)
-    p = Path(path)
+    p = File(path)
     if not p:
         raise HTTPException(404, 'Not found')
     p.delete()
@@ -51,26 +51,30 @@ def delete_file(path: str = Path(...)):
 async def get_meta(path, request: Request):
     node = Node(path)
     ensure_existed(node)
-    ensure_accessible(node, request)
-    return node.meta
+    meta = node.meta
+    meta.update({
+        'path': '/' + node.path,
+        'type': node.type,
+    })
+    return meta
 
 
 @app.put('/api/meta/{path:path}')
-def update_meta(path):
-    node = Node(path, check_exist=True)
-    node.check_access(request)
-    return node.meta
+def update_meta(path, request: Request):
+    ensure_me(request)
 
 
 @app.get('/api/dir/{path:path}')
 def list_directory(path):
-    node = Node(path, check_exist=True)
-    node.check_access(request)
-    return node.list()
+    node = Dir(path)
+    ensure_existed(node)
+    meta = node.meta
+    meta['children'] = node.list()
+    return meta
 
 
 @app.put('/api/dir/{path:path}')
-async def create_directory(path: str = Path(...), request: Request = None):
+async def create_directory(path, request: Request = None):
     ensure_me(request)
     dir = Dir(path)
     if dir:
@@ -79,7 +83,7 @@ async def create_directory(path: str = Path(...), request: Request = None):
 
 
 @app.delete('/api/dir/{path:path}')
-def delete_directory(path: str = Path(...)):
+def delete_directory(path):
     ensure_me(request)
     p = Path(path)
     if not p:
@@ -88,10 +92,7 @@ def delete_directory(path: str = Path(...)):
 
 
 @app.post('/api/mv')
-def move(
-        src_path: str,
-        dst_path: str,
-):
+def move(src_path, dst_path, request: Request):
     ensure_me(request)
 
 
@@ -100,19 +101,14 @@ def ensure_existed(node):
         raise HTTPException(404, 'Not found')
 
 
-def ensure_not_type(node, type):
-    if node.type == type:
+def ensure_not_type(node, node_type):
+    if node.type == node_type:
         raise HTTPException(400, f'Is {type}')
 
 
-def ensure_type(node, type):
-    if node.type != type:
+def ensure_type(node, node_type):
+    if node.type != node_type:
         raise HTTPException(400, f'Is not {type}')
-
-
-def ensure_accessible(node, request):
-    if node.private:
-        ensure_me(request)
 
 
 def ensure_me(request):
