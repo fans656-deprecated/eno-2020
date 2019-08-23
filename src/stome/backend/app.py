@@ -1,56 +1,46 @@
+import traceback
+
 from fastapi import FastAPI, Path, Query, Body, HTTPException
 from starlette.requests import Request
 from starlette.responses import StreamingResponse
 
-from fs import Node, File, Dir
-import conf
+from fs import Node, File, Dir, NodeType
+from utils import get_user
 
 
 app = FastAPI(title='stome')
 
 
-def check_me(request):
-    token = request.cookies.get('token')
-    if token:
-        try:
-            user = jwt.decode(token, conf.PUBKEY, algorithm='RS512')
-            if user.get('username') == 'fans656':
-                return
-        except Exception:
-            pass
-    raise HTTPException(401, 'require fans656 login')
-
-
 @app.get('/api/file/{path:path}')
 async def download_file(path, request: Request):
-    node = Node(path, check_exist=True)
-    if not node.is_dir():
-        raise HTTPException(400, 'Is directory')
-    node.check_access(request)
-    return StreamingResponse(f.stream(), media_type=f.mime_type)
+    f = File(path)
+    ensure_existed(f)
+    ensure_accessible(f, request)
+    ensure_not_type(f, 'dir')
+    return StreamingResponse(f.stream(), media_type=f.mime)
 
 
 @app.put('/api/file/{path:path}')
 async def upload_file(
-        path: str = Path(...),
+        *,
+        path,
         force: bool = Query(
             False,
             title='Force create even existed, old file will be deleted',
         ),
-        request: Request = None,
+        request: Request,
 ):
-    check_me(request)
-    file = File(path)
-    if file:
-        if not force:
-            raise HTTPException(409, 'Existed')
-        file.delete()
-    await file.create(request)
+    ensure_me(request)
+    f = File(path)
+    ensure_not_type(f, NodeType.Dir)
+    if f.existed and not force:
+        raise HTTPException(409, 'Existed')
+    await f.create(request)
 
 
 @app.delete('/api/file/{path:path}')
 def delete_file(path: str = Path(...)):
-    check_me(request)
+    ensure_me(request)
     p = Path(path)
     if not p:
         raise HTTPException(404, 'Not found')
@@ -61,7 +51,7 @@ def delete_file(path: str = Path(...)):
 async def get_meta(path, request: Request):
     node = Node(path)
     ensure_existed(node)
-    ensure_readable(node, request)
+    ensure_accessible(node, request)
     return node.meta
 
 
@@ -81,7 +71,7 @@ def list_directory(path):
 
 @app.put('/api/dir/{path:path}')
 async def create_directory(path: str = Path(...), request: Request = None):
-    check_me(request)
+    ensure_me(request)
     dir = Dir(path)
     if dir:
         raise HTTPException(409, 'Existed')
@@ -90,7 +80,7 @@ async def create_directory(path: str = Path(...), request: Request = None):
 
 @app.delete('/api/dir/{path:path}')
 def delete_directory(path: str = Path(...)):
-    check_me(request)
+    ensure_me(request)
     p = Path(path)
     if not p:
         raise HTTPException(404, 'Not found')
@@ -102,15 +92,7 @@ def move(
         src_path: str,
         dst_path: str,
 ):
-    check_me(request)
-
-
-@app.post('/api/cp')
-def copy(
-        src_path: str,
-        dst_path: str,
-):
-    check_me(request)
+    ensure_me(request)
 
 
 def ensure_existed(node):
@@ -118,6 +100,22 @@ def ensure_existed(node):
         raise HTTPException(404, 'Not found')
 
 
-def ensure_readable(node, request):
-    if node.is_private():
-        check_me(request)
+def ensure_not_type(node, type):
+    if node.type == type:
+        raise HTTPException(400, f'Is {type}')
+
+
+def ensure_type(node, type):
+    if node.type != type:
+        raise HTTPException(400, f'Is not {type}')
+
+
+def ensure_accessible(node, request):
+    if node.private:
+        ensure_me(request)
+
+
+def ensure_me(request):
+    user = get_user(request)
+    if not user['username'] == 'fans656':
+        raise HTTPException(401, 'require fans656 login')
