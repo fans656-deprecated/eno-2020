@@ -1,5 +1,5 @@
 #!/bin/sh
-IMAGE_NAME="graph.fans656.me-frontend"
+IMAGE_NAME="stome.fans656.me-frontend"
 DATA=/data
 DATA_OUT=$DATA/out
 CODE_OUT=/code/out
