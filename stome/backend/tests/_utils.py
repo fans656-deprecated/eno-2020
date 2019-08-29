@@ -6,13 +6,9 @@ import hashlib
 
 import pytest
 
+
+os.environ['ROOT'] = os.path.abspath('test-root')
 import conf
-
-
-conf.ROOT_DIR = os.path.abspath('test-root')
-conf.META_DIR = os.path.join(conf.ROOT_DIR, 'meta')
-conf.INODE_DIR = os.path.join(conf.ROOT_DIR, 'inode')
-conf.INODE_META_DIR = os.path.join(conf.ROOT_DIR, 'inode-meta')
 
 EXISTED_DIR = 'existed-dir'
 EXISTED_FILE = os.path.join(EXISTED_DIR, 'existed-file')
@@ -29,9 +25,13 @@ def filesystem():
         shutil.rmtree(conf.ROOT_DIR)
     os.makedirs(conf.ROOT_DIR)
     os.makedirs(conf.META_DIR)
-    os.makedirs(conf.INODE_DIR)
+    os.makedirs(conf.TEMP_DIR)
+    os.makedirs(conf.INODE_DATA_DIR)
+    os.makedirs(conf.INODE_META_DIR)
+
     os.makedirs(meta_path(EXISTED_DIR))
     create_file(EXISTED_FILE, EXISTED_FILE_CONTENT)
+
     yield
     #shutil.rmtree(conf.ROOT_DIR)
 
@@ -56,4 +56,15 @@ def meta_path(path):
 
 
 def inode_path(path):
-    return os.path.join(conf.INODE_DIR, path)
+    return os.path.join(conf.INODE_DATA_DIR, path)
+
+
+async def gen_content(content):
+    yield content
+
+
+async def get_content(stream):
+    content = b''
+    async for chunk in stream:
+        content += chunk
+    return content

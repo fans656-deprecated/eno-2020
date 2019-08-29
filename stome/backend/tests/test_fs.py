@@ -1,15 +1,15 @@
 from ._utils import *
-from fs import Node, Dir, File, NodeType
+from node import Node, Dir, File, NodeType
 
 
 def test_existed(filesystem):
-    assert Node(EXISTED_DIR).existed
-    assert Node(EXISTED_FILE).existed
+    assert Node(EXISTED_DIR)
+    assert Node(EXISTED_FILE)
 
 
 def test_not_existed(filesystem):
-    assert not Node(NOT_EXISTED_DIR).existed
-    assert not Node(NOT_EXISTED_FILE).existed
+    assert not Node(NOT_EXISTED_DIR)
+    assert not Node(NOT_EXISTED_FILE)
 
 
 def test_type(filesystem):

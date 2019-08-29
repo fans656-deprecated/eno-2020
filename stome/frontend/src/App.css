@@ -1,0 +1,57 @@
+body {
+  display: flex;
+}
+
+#__next {
+  flex: 1;
+}
+
+.layout-content {
+  display: flex;
+}
+
+.layout-content > * {
+  display: flex;
+  flex: 1;
+}
+
+.page {
+  flex: 1;
+}
+
+.mono {
+  font-family: 'Consolas', monospace;
+}
+
+.horz {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.horz.space-between {
+  justify-content: space-between;
+}
+
+.vert {
+  display: flex;
+  flex-direction: column;
+  flex-wrap: wrap;
+}
+
+.vert.stretch {
+  align-items: stretch;
+}
+
+.clickable:hover{
+  cursor: pointer;
+  background: #ddd;
+}
+
+.selected-list-item {
+  background: #eee;
+}
+
+.explorer-tree li {
+  margin: 0;
+  /*padding: 0;*/
+}

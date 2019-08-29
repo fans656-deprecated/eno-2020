@@ -1,9 +1,10 @@
 import os
+import json
+import mimetypes
 from enum import Enum
 
 import conf
-from inode import Inode, create_inode
-from utils import cached
+from inode import Inode
 
 
 class NodeType(Enum):
@@ -16,11 +17,10 @@ class Node:
 
     def __init__(self, path):
         self._abspath = _absolute_path(path)
-        self.path = path[conf.META_DIR_PREFIX_LENGTH:]
+        self.path = self._abspath[conf.META_DIR_PREFIX_LENGTH:]
         self.fname = os.path.basename(self.path)
 
     @property
-    @cached
     def meta(self):
         try:
             with open(self._abspath) as f:
@@ -46,13 +46,8 @@ class Node:
     def __bool__(self):
         return os.path.exists(self._abspath)
 
-
-def _absolute_path(path):
-    path = os.path.abspath(os.path.join(conf.META_DIR, path))
-    if not path.startswith(conf.META_DIR):
-        raise RuntimeError(f'invalid path {path}')
-    return path
-
+    def __repr__(self):
+        return f'{self.__class__.__name__}(path={self.path})'
 
 
 class Dir(Node):
@@ -81,32 +76,40 @@ class File(Node):
 
     @property
     def inode(self):
-        return Inode(self.meta.get('inode'))
+        inode_id = self.meta.get('inode')
+        return Inode(inode_id) if inode_id else None
 
-    async def create(self, stream):
+    async def create(self, stream, transfer=None):
         # ensure parent directory exists
         d = Dir(os.path.dirname(self.path))
-        if not d.existed:
+        if not d:
             d.create()
         # ensure old inode removed
         inode = self.inode
         if inode:
             inode.unref()
         # create new inode
-        inode = await create_inode(stream, _get_mime(self.fname))
+        inode = await Inode.create(stream, _get_mime(self.fname), transfer=transfer)
         # init meta
         self.save_meta({
-            'inode': inode.id,
+            'inode': inode.md5,
         })
 
     def delete(self):
         self.inode.unref()
         if os.path.exists(self._abspath):
-            os.path.remove(self._abspath)
+            os.remove(self._abspath)
+
+
+def _absolute_path(path):
+    if path.startswith('/'):
+        path = path[1:]
+    path = os.path.abspath(os.path.join(conf.META_DIR, path))
+    if not path.startswith(conf.META_DIR):
+        raise RuntimeError(f'invalid path {path}')
+    return path
 
 
 def _get_mime(fname):
-    main, sub = mimetypes.guess_type(self.fname)
-    if main:
-        return f'{main}/{sub}'
-    return 'application/octet-stream'
+    mime, encoding = mimetypes.guess_type(fname)
+    return mime or 'application/octet-stream'
