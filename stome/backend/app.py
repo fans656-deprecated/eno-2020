@@ -213,7 +213,7 @@ def sync_from_storage(sync: SyncModel, request: Request):
     print('sync_from_storage', dict(sync))
 
 
-@app.get('/api/transfer-event-source')
+@app.get('/api/stream/transfer')
 def transfer_event_source(request: Request):
     """
     SSE (Server Sent Event) endpoint for transfer events.

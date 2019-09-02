@@ -15,7 +15,7 @@ class TransferManager {
     this.notifyDelayCount = 0;
     this.onUploadFinished = noop;
     if (process.browser) {
-      const eventSource = new EventSource('/api/transfer-event-source');
+      const eventSource = new EventSource('/api/stream/transfer');
       eventSource.addEventListener('progress', (ev) => {
         const data = JSON.parse(ev.data);
         this.onProgress(data);
