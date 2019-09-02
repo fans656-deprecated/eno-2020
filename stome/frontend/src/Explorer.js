@@ -1,276 +1,238 @@
 import React from 'react';
 import _ from 'lodash';
+import Path from 'path';
 import { Modal, Upload, Button, Input, Tree, Popconfirm, message } from 'antd';
+
 import NodePanel from './NodePanel';
+import FileSystem from './filesystem';
 import getTransferManager from './transfermanager';
+import { api } from './utils';
 
-const currentPath = process.browser ? window.location.pathname : '/';
+const URL_PATH = process.browser ? window.location.pathname : '/';
 
-export default class Home extends React.Component {
+export default class Explorer extends React.Component {
   constructor(props) {
     super(props);
+    this.filesystem = new FileSystem(URL_PATH, {onRefresh: this.onRefresh});
     this.state = {
-      currentPath: currentPath,
-      inputPath: currentPath,
+      currentPath: this.filesystem.currentPath,
       nodes: [],
-      selectedNodes: [],
+      selectedPaths: [],
       renameModalVisible: false,
-      renameNodeName: '',
+      renameModalNewName: '',
     };
     this.fileInput = React.createRef();
   }
 
-  componentDidMount = async () => {
-    await this.changeCurrentPath(this.state.currentPath);
+  componentDidMount = () => {
+    this.filesystem.cd(this.state.currentPath);
   }
 
   render() {
+    const selectedPath = this.state.selectedPaths[0];
+    const selectedNode = this.filesystem.currentDir.getNodeByPath(selectedPath);
     return (
       <div className="horz" style={{minHeight: '100%'}}>
         <div className="vert stretch" style={{flex: 1}}>
-          <Input.Group className="horz">
-            <Button title="Current directory" onClick={this.onCurrentDirectory}>.</Button>
-            <Button title="Parent directory"
-              disabled={this.state.currentPath === '/'}
-              onClick={this.onParentDirectory}>..</Button>
-            <Input
-              className="mono"
-              value={this.state.inputPath}
-              onChange={ev => this.setState({inputPath: ev.target.value})}
-              onPressEnter={this.onChangePath}
-              style={{flex: 1}}
-            />
-            <Popconfirm
-              title="Are you sure to delete?"
-              onConfirm={this.onDelete}
-              okText="Delete"
-            >
-              <Button icon="delete" title="Delete" disabled={!this.selected()}/>
-            </Popconfirm>
-            <Button icon="swap" title="Move (edit path as target)"
-              disabled={!this.selected() || this.state.inputPath === this.state.currentPath}
-              onClick={this.onMove}
-            />
-            <Button icon="folder-add" title="New directory (edit path as target)"
-              disabled={this.state.inputPath === this.state.currentPath}
-              onClick={this.onNewDirectory}
-            />
-            <Button icon="edit" title="Rename" disabled={!this.singleSelected()}
-              onClick={() => this.setState({
-                renameModalVisible: true,
-                renameNodeName: this.state.selectedNodes[0].name,
-              })}
-            />
-            {false &&
-            <Upload
-              showUploadList={false}
-              multiple={true}
-              beforeUpload={this.onUploadFile}
-            >
-              <Button icon="upload" title="Upload"/>
-            </Upload>
-            }
-            <Button icon="upload" title="Upload"
-              onClick={() => this.fileInput.current.click()}
-            />
-            <input ref={this.fileInput}
-              type="file"
-              style={{display: 'none'}}
-              multiple
-              onChange={ev => {
-                getTransferManager().uploadFiles(this.state.currentPath, ev.target.files);
-              }}
-            />
-          </Input.Group>
-          <Tree.DirectoryTree
-            key={this.state.currentPath}
-            className="explorer-tree"
-            multiple
-            blockNode={true}
-            expandAction="doubleClick"
-            dataSource={this.state.nodes}
-            onSelect={this.onSelect}
-            onExpand={this.onExpand}
-          >
-            {this.renderItems(this.state.nodes)}
-          </Tree.DirectoryTree>
+          {this.renderNav()}
+          {this.renderTree()}
         </div>
         <div style={{flex: 1}}>
-          {this.state.selectedNodes.length === 1 &&
+          {this.singleSelected() &&
             <NodePanel
-              key={this.state.selectedNodes[0].path}
-              node={this.state.selectedNodes[0]}
+              key={selectedNode.path}
+              node={selectedNode}
               availStorages={this.props.storages}
             />
           }
         </div>
-        <Modal
-          title="Rename"
-          visible={this.state.renameModalVisible}
-          onOk={this.doRename}
-          onCancel={() => this.setState({renameModalVisible: false})}
-        >
-          <Input
-            value={this.state.renameNodeName}
-            onChange={ev => this.setState({renameNodeName: ev.target.value})}
-            onPressEnter={ev => {
-              this.doRename();
-              ev.preventDefault();
-            }}
-          />
-        </Modal>
+        {this.renderRenameModal()}
       </div>
     );
   }
 
-  renderItems = (nodes) => {
-    return nodes.map(node => {
-      return (
-        <Tree.TreeNode
-          title={node.name}
-          key={node.path}
-          isLeaf={node.type !== 'dir'}
+  renderNav = () => {
+    return (
+      <Input.Group className="horz">
+        <Button title="Current directory"
+          onClick={this.onCurrentDirectory}
+        >.</Button>
+        <Button title="Parent directory"
+          disabled={this.state.currentPath === '/'}
+          onClick={this.filesystem.cdUp}
+        >.. </Button>
+        <Input className="mono"
+          value={this.state.currentPath}
+          onChange={ev => this.setState({currentPath: ev.target.value})}
+          onPressEnter={() => this.filesystem.cd(this.state.currentPath)}
+          style={{flex: 1}}
+        />
+        <Popconfirm
+          title="Are you sure to delete?"
+          onConfirm={this.onDelete}
+          okText="Delete"
         >
-        </Tree.TreeNode>
-      );
-    });
+          <Button icon="delete" title="Delete" disabled={!this.selected()}/>
+        </Popconfirm>
+        <Button icon="swap" title="Move (edit path as target)"
+          disabled={!this.selected() || this.state.currentPath === this.filesystem.currentPath}
+          onClick={this.onMove}
+        />
+        <Button icon="folder-add" title="New directory (edit path as target)"
+          disabled={this.state.currentPath === this.filesystem.currentPath}
+          onClick={this.onNewDirectory}
+        />
+        <Button icon="edit" title="Rename" disabled={!this.singleSelected()}
+          onClick={() => this.setState({
+            renameModalVisible: true,
+            renameModalNewName: Path.basename(this.state.selectedPaths[0]),
+          })}
+        />
+        <Button icon="upload" title="Upload"
+          onClick={() => this.fileInput.current.click()}
+        />
+        <input ref={this.fileInput}
+          type="file"
+          style={{display: 'none'}}
+          multiple
+          onChange={ev => {
+            getTransferManager().uploadFiles(this.state.currentPath, ev.target.files);
+          }}
+        />
+      </Input.Group>
+    );
+  }
+
+  renderTree = () => {
+    const nodes = this.state.nodes;
+    const nodeComps = nodes.map(node => (
+      <Tree.TreeNode
+        title={node.name}
+        key={node.path}
+        isLeaf={node.type !== 'dir'}
+      >
+      </Tree.TreeNode>
+    ));
+    return (
+      <Tree.DirectoryTree
+        key={this.state.currentPath}
+        multiple
+        blockNode={true}
+        expandAction="doubleClick"
+        dataSource={this.state.nodes}
+        selectedKeys={this.state.selectedPaths}
+        onSelect={this.onSelect}
+        onExpand={this.onExpand}
+      >
+        {nodeComps}
+      </Tree.DirectoryTree>
+    );
+  }
+
+  renderRenameModal = () => {
+    return (
+      <Modal
+        title="Rename"
+        visible={this.state.renameModalVisible}
+        onOk={this.onRename}
+        onCancel={() => this.setState({renameModalVisible: false})}
+      >
+        <Input
+          value={this.state.renameModalNewName}
+          onChange={ev => this.setState({renameModalNewName: ev.target.value})}
+          onPressEnter={ev => {
+            this.onRename();
+            ev.preventDefault();
+          }}
+        />
+      </Modal>
+    );
   }
 
   onSelect = (paths) => {
-    const nodes = paths.map(path => this.pathToNode[path])
-    this.setState({selectedNodes: nodes});
+    this.setState({selectedPaths: paths});
   }
 
   onExpand = (paths) => {
-    this.changeCurrentPath(paths[0]);
+    this.setState({
+      selectedPaths: [],
+    }, () => {
+      this.filesystem.cd(paths[0]);
+    });
   }
 
   onCurrentDirectory = () => {
-    this.setState({
-      inputPath: this.state.currentPath,
-    });
-  }
-
-  onParentDirectory = () => {
-    let path = this.state.currentPath;
-    const parts = path.split('/');
-    parts.pop();
-    path = parts.join('/');
-    this.changeCurrentPath(path);
-  }
-
-  onChangePath = () => {
-    this.changeCurrentPath(this.state.inputPath);
+    this.setState({currentPath: this.filesystem.currentPath});
   }
 
   onDelete = () => {
-    this.deleteNodes(this.state.selectedNodes);
+    const paths = this.state.selectedPaths;
+    this.setState({
+      selectedPaths: [],
+    }, () => this.filesystem.rm(paths));
   }
 
-  onMove = async () => {
+  onMove = () => {
+    const paths = this.state.selectedPaths;
+    this.setState({
+      selectedPaths: [],
+    }, () => this.filesystem.mv(paths, this.state.currentPath));
   }
 
-  onNewDirectory = async () => {
-    const res = await fetch(`/api/dir/${normalized(this.state.inputPath)}`, {
-      method: 'POST',
-    });
-    if (res.status === 200) {
-      this.changeCurrentPath(this.state.currentPath, true);
-    } else {
-      message.error(`Failed to create (${res.status})`);
-    }
-  }
-
-  onUploadFile = (file) => {
-    //let path = normalized(this.state.currentPath);
-    //if (path.length) {
-    //  path = `/${path}/${file.name}`;
-    //} else {
-    //  path = `/${file.name}`;
-    //}
-    //getTransferManager().upload(path, file);
-    return false;
-  }
-
-  deleteNodes = async (nodes) => {
-    const res = await fetch('/api/rm', {
-      method: 'POST',
-      body: JSON.stringify({
-        paths: nodes.map(node => node.path),
-      }),
-    });
-    if (res.status === 200) {
-    } else {
-      message.error(`Failed to delete (${res.status})`);
-    }
-    this.changeCurrentPath(this.state.currentPath, true);
-  }
-
-  doRename = () => {
-    const node = this.state.selectedNodes[0];
-    const newName = this.state.renameNodeName;
+  onRename = () => {
+    const node = this.selectedNode();
+    const newName = this.state.renameModalNewName;
     if (newName.length === 0) {
       message.error('Empty name');
       return;
     }
     if (node.name !== newName) {
-      const newPath = renamed(node.path, newName);
-      console.log(node.path, newPath);
+      this.setState({
+        selectedPaths: [],
+      }, () => this.filesystem.rename(node.path, newName));
     }
     this.setState({renameModalVisible: false});
   }
 
-  changeCurrentPath = async (path) => {
+  onNewDirectory = async () => {
+    this.filesystem.mkdir(this.state.currentPath);
+  }
+
+  changeDirectory = async (path) => {
     const samePath = path === this.state.currentPath;
-    path = normalized(path);
-    const res = await fetch(`/api/dir/${path}`);
-    if (res.status === 200) {
-      const data = await res.json();
-      const nodes = data.children || [];
-      this.pathToNode = {};
-      for (const node of nodes) {
-        const prefix = path.length ? `/${path}` : '';
-        node.path = `${prefix}/${node.name}`;
-        this.pathToNode[node.path] = node;
-      }
-      nodes.sort((a, b) => {
-        if (a.type === b.type) {
-          return a.name <= b.name ? -1 : 1;
-        } else {
-          return a.type === 'dir' ? -1 : 1;
-        }
-      });
-      this.setState({
-        currentPath: '/' + path,
-        inputPath: '/' + path,
-        nodes: nodes,
-        selectedNodes: samePath ? this.state.selectedNodes : [],
-      });
-    } else {
-      message.error('Failed to load path');
-    }
+    this.filesystem.cd(path);
+    const dir = new Dir(path);
+    const { nodes, pathToNode } = await dir.list();
+    this.pathToNode = pathToNode;
+    this.setState({
+      currentPath: path,
+      nodes: nodes,
+      selectedPaths: samePath ? this.state.selectedPaths : [],
+    });
   }
 
   selected = () => {
-    return this.state.selectedNodes.length > 0;
+    return this.state.selectedPaths.length > 0;
   }
 
   singleSelected = () => {
-    return this.state.selectedNodes.length === 1;
+    return this.state.selectedPaths.length === 1;
   }
-}
 
-function normalized(path) {
-  if (path == null) {
-    path = '/';
+  selectedNode = () => {
+    const path = this.state.selectedPaths[0];
+    const node = this.filesystem.currentDir.getNodeByPath(path);
+    return node;
   }
-  if (path.startsWith('/')) {
-    path = path.substring(1);
+
+  onRefresh = (currentDir) => {
+    const nodes = currentDir.nodes.map(node => ({...node, key: node.path}));
+    this.setState({
+      currentPath: currentDir.path,
+      nodes: nodes,
+      selectedPaths: [],
+    });
   }
-  if (path.endsWith('/')) {
-    path = path.substring(0, path.length - 1);
-  }
-  return path;
 }
 
 function renamed(path, name) {

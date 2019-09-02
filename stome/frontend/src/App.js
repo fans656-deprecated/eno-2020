@@ -1,17 +1,18 @@
 import React from 'react';
-import { Drawer, Layout, Menu, Button, Input, List, message } from 'antd';
-import Link from 'next/link';
+import { Layout, Menu, Drawer, message } from 'antd';
+import 'antd/dist/antd.min.css';
+
 import Explorer from './Explorer';
 import Transfer from './Transfer';
 import Storage from './Storage';
-import 'antd/dist/antd.min.css';
+import { api } from './utils';
 import './App.css';
 
 export default class App extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
-      templates: [],
+      storageTemplates: [],
       storages: [],
       transferDrawerVisible: process.browser && window.location.hash === '#transfer',
       storageDrawerVisible: process.browser && window.location.hash === '#storage',
@@ -19,125 +20,106 @@ export default class App extends React.Component {
   }
 
   componentDidMount = async () => {
-    await this.fetchStorageTemplates();
-    await this.fetchStorages();
+    await this._fetchStorageTemplates();
+    await this._fetchStorages();
   }
 
   render() {
     return (
       <Layout style={{minHeight: '100%'}}>
-        <Layout.Header
-          style={{
-            height: '40px',
-            paddingLeft: 0,
-          }}
-        >
-          <Menu
-            theme="dark"
-            mode="horizontal"
-            style={{
-              display: 'flex',
-              lineHeight: '40px',
-              padding: 0,
-            }}
-            selectedKeys={[]}
-          >
-            <Menu.Item
-              style={{
-                color: '#ddd',
-                fontWeight: 'bold',
-                fontSize: '1.3em',
-              }}
-            >Stome</Menu.Item>
-            <Menu.Item key="transfer"
-              onClick={() => {
-                window.location.hash = '#transfer';
-                this.setState({transferDrawerVisible: true});
-              }}
-            >Transfer</Menu.Item>
-            <Menu.Item key="storage"
-              onClick={() => {
-                window.location.hash = '#storage';
-                this.setState({storageDrawerVisible: true});
-              }}
-            >Storage</Menu.Item>
-          </Menu>
-        </Layout.Header>
-        <Layout.Content
-          style={{
-            flex: 1,
-            backgroundColor: 'white',
-            margin: '1em',
-          }}
-        >
-          <Explorer
-            storages={this.state.storages}
-          />
-        </Layout.Content>
-        <Drawer
-          title="Transfer"
-          visible={this.state.transferDrawerVisible}
-          closable={false}
-          onClose={() => {
-            history.replaceState(null, null, ' ');
-            this.setState({transferDrawerVisible: false});
-          }}
-          width="50%"
-        >
-          <Transfer
-            templates={this.state.templates}
-            storages={this.state.storages}
-            storagesChanged={this.fetchStorages}
-          />
-        </Drawer>
-        <Drawer
-          title="Storage"
-          visible={this.state.storageDrawerVisible}
-          closable={false}
-          onClose={() => {
-            history.replaceState(null, null, ' ');
-            this.setState({storageDrawerVisible: false});
-          }}
-          width="50%"
-        >
-          <Storage
-            templates={this.state.templates}
-            storages={this.state.storages}
-            storagesChanged={this.fetchStorages}
-          />
-        </Drawer>
+        {this.renderHeader()}
+        {this.renderExplorer()}
+        {this.renderTransfer()}
+        {this.renderStorage()}
       </Layout>
     );
   }
 
-  fetchStorageTemplates = async () => {
-    const res = await fetch('/api/storage-templates');
-    if (res.status === 200) {
-      const data = await res.json();
-      const templates = data.data;
-      this.idToTemplate = _.keyBy(templates, t => t.id);
-      this.setState({
-        templates: templates,
-      });
-    } else {
-      message.error('Failed to fetch storage templates');
-    }
+  renderHeader = () => {
+    return (
+      <Layout.Header style={{height: '40px', paddingLeft: 0}}>
+        <Menu
+          theme="dark"
+          mode="horizontal"
+          style={{display: 'flex', lineHeight: '40px', padding: 0}}
+          selectedKeys={[]}
+        >
+          <Menu.Item>
+            <span className="logo">Stome</span>
+          </Menu.Item>
+          <Menu.Item key="transfer" onClick={() => this._showDrawer('transfer')}>
+            Transfer
+          </Menu.Item>
+          <Menu.Item key="storage" onClick={() => this._showDrawer('storage')}>
+            Storage
+          </Menu.Item>
+        </Menu>
+      </Layout.Header>
+    );
   }
 
-  fetchStorages = async () => {
-    const res = await fetch('/api/storages');
-    if (res.status === 200) {
-      const data = await res.json();
-      const storages = data.data;
-      for (const storage of storages) {
-        storage.key = storage.id;
-        storage.template = this.idToTemplate[storage.template_id];
-      }
-      this.setState({
-        storages: storages,
-      });
-    } else {
-      message.error('Failed to fetch storage');
+  renderExplorer = () => {
+    return (
+      <Layout.Content className="layout-content">
+        <Explorer
+          storages={this.state.storages}
+        />
+      </Layout.Content>
+    );
+  }
+
+  renderTransfer = () => {
+    return this._renderDrawer('Transfer', 'transferDrawerVisible', (
+      <Transfer
+        storages={this.state.storages}
+      />
+    ));
+  }
+
+  renderStorage = () => {
+    return this._renderDrawer('Storage', 'storageDrawerVisible', (
+      <Storage
+        storageTemplates={this.state.storageTemplates}
+        storages={this.state.storages}
+        storagesChanged={this._fetchStorages}
+      />
+    ));
+  }
+
+  _renderDrawer = (title, visibleStateName, children) => {
+    return (
+      <Drawer
+        title={title}
+        visible={this.state[visibleStateName]}
+        closable={false}
+        onClose={() => {
+          history.replaceState(null, null, ' ');
+          this.setState({[visibleStateName]: false});
+        }}
+        width="50%"
+      >
+        {children}
+      </Drawer>
+    );
+  }
+
+  _showDrawer = (name) => {
+    window.location.hash = `#${name}`;
+    this.setState({[`${name}DrawerVisible`]: true});
+  }
+
+  _fetchStorageTemplates = async () => {
+    const templates = (await api.get('/api/storage-templates')).data;
+    this.setState({storageTemplates: templates});
+  }
+
+  _fetchStorages = async () => {
+    const storages = (await api.get('/api/storages')).data;
+    const templates = _.keyBy(this.state.storageTemplates, t => t.id);
+    for (const storage of storages) {
+      storage.key = storage.id;
+      storage.template = templates[storage.template_id];
     }
+    this.setState({storages: storages});
   }
 }

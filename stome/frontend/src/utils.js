@@ -1,44 +1,55 @@
-import {
-  message, notification,
-} from 'antd';
+import { message, notification } from 'antd';
 
-export async function error(res, message) {
-  let text = res;
-  let status = 'Error';
-  if (typeof(res) !== 'string') {
-    status = res.status;
-    try {
-      text = JSON.stringify(JSON.parse(await res.text()), null, 2);
-    } catch (e) {
-      // noop
-    }
+export function noop() {
+  // noop
+}
+
+export function error(message, text) {
+  try {
+    text = JSON.stringify(JSON.parse(text), null, 2);
+  } catch (e) {
+    // noop
   }
   notification.error({
-    message: message || status,
+    message: message,
     description: (
-      <pre>{text}</pre>
+      <pre style={{
+        fontSize: '.9em',
+        fontFamily: 'Consolas; Courier New',
+      }}>{text}</pre>
     ),
   });
 }
 
 export const api = {
+  get: function(path) {
+    return _request('GET', path);
+  },
+
   post: function(path, data) {
-    return new Promise(async (resolve) => {
-      const res = await fetch(path, {
-        method: 'POST',
-        body: JSON.stringify(data),
-      });
-      if (res.status === 200) {
-        const text = await res.text();
-        try {
-          resolve(text.length ? JSON.parse(text) : {});
-        } catch (e) {
-          console.log(e);
-          error(text, 'Parse error');
-        }
-      } else {
-        error(res);
-      }
-    });
+    return _request('POST', path, data);
   },
 };
+
+function _request(method, path, data) {
+  return new Promise(async (resolve) => {
+    const options = {
+      method: method,
+    };
+    if (data) {
+      options.body = JSON.stringify(data);
+    }
+    const res = await fetch(path, options);
+    if (res.status === 200) {
+      const text = await res.text();
+      try {
+        resolve(text.length ? JSON.parse(text) : {});
+      } catch (e) {
+        console.log(e);
+        error('Parse error', text);
+      }
+    } else {
+      error(`${method} ${path} (${res.status})`, await res.text());
+    }
+  });
+}

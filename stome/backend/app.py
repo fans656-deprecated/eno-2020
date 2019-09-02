@@ -1,3 +1,6 @@
+import os
+import traceback
+
 from fastapi import FastAPI, Path, Query, Body, HTTPException
 from starlette.requests import Request
 from starlette.responses import FileResponse, StreamingResponse
@@ -5,7 +8,7 @@ from starlette.staticfiles import StaticFiles
 
 from node import Node, File, Dir, NodeType
 from utils import get_user
-from model import Target, StorageModel, SyncModal
+from model import Target, StorageModel, SyncModel, MoveModel
 from transfer import Transfer
 
 
@@ -75,7 +78,9 @@ def list_directory(path):
     node = Dir(path)
     ensure_existed(node)
     meta = node.meta
-    meta['children'] = node.list()
+    dirs, files = node.list()
+    meta['dirs'] = [dict(d) for d in dirs]
+    meta['files'] = [dict(f) for f in files]
     return meta
 
 
@@ -89,8 +94,47 @@ def create_directory(path, request: Request = None):
 
 
 @app.post('/api/mv')
-def move(src_path, dst_path, request: Request):
+def move(spec: MoveModel, request: Request):
+    """
+    1. Rename
+        {
+            "src_paths": [
+                ("/foo.jpg", "/bar.jpg"),
+                ("/big.flv", "/giant.flv"),
+            ],
+        }
+    2. Move to directory
+        {
+            "src_paths": ["/1.jpg", "/2.jpg"],
+            "dst_path": '/img',
+        }
+    """
     ensure_me(request)
+    errors = []
+    for src_path, dst_path in normalized_move_paths(spec):
+        src = Node(src_path)
+        dst = Node(dst_path)
+        if not src:
+            errors.append({
+                'err': 'not found',
+                'src': src_path,
+            })
+        if dst:
+            errors.append({
+                'err': 'existed',
+                'src': src_path,
+                'dst': dst_path,
+            })
+        try:
+            src.move(dst)
+        except OSError:
+            errors.append({
+                'err': 'exception',
+                'detail': traceback.format_exc(),
+                'src': src_path,
+                'dst': dst_path,
+            })
+    return {'errors': errors}
 
 
 @app.post('/api/rm')
@@ -157,14 +201,14 @@ def get_storage_templates():
 
 
 @app.post('/api/sync-to-storage')
-def sync_to_storage(sync: SyncModal, request: Request):
+def sync_to_storage(sync: SyncModel, request: Request):
     ensure_me(request)
     print('sync_to_storage', dict(sync))
     return sync
 
 
 @app.post('/api/sync-from-storage')
-def sync_from_storage(sync: SyncModal, request: Request):
+def sync_from_storage(sync: SyncModel, request: Request):
     ensure_me(request)
     print('sync_from_storage', dict(sync))
 
@@ -198,15 +242,27 @@ def ensure_existed(node):
 
 def ensure_not_type(node, node_type):
     if node.type == node_type:
-        raise HTTPException(400, f'Is {type}')
+        raise HTTPException(400, f'Is {node_type.value}')
 
 
 def ensure_type(node, node_type):
     if node.type != node_type:
-        raise HTTPException(400, f'Is not {type}')
+        raise HTTPException(400, f'Is not {node_type.value}')
 
 
 def ensure_me(request):
     user = get_user(request)
     if user['username'] != 'fans656':
         raise HTTPException(401, 'require fans656 login')
+
+
+def normalized_move_paths(spec):
+    move_paths = []
+    for src_path in spec.src_paths:
+        if isinstance(src_path, tuple):
+            src_path, dst_path = src_path
+        else:
+            fname = os.path.basename(src_path)
+            dst_path = os.path.join(spec.dst_path, fname)
+        move_paths.append((src_path, dst_path))
+    return move_paths

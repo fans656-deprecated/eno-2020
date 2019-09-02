@@ -12,7 +12,7 @@ class Transfer:
         Transfer.queues.append(queue)
         while True:
             if await request.is_disconnected():
-                queues.remove(queue)
+                Transfer.queues.remove(queue)
                 break
             data = await queue.get()
             yield f'event: progress\n'

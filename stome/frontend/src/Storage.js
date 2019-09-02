@@ -11,7 +11,7 @@ export default class Storage extends React.Component {
       newStorageAttrs: '',
       newStorageName: '',
     };
-    this.idToTemplate = {};
+    this.idToStorageTemplate = {};
   }
 
   render() {
@@ -49,7 +49,7 @@ export default class Storage extends React.Component {
           value={this._newStorageTemplateId()}
           onChange={e => this.setState({newStorageTemplateId: e.target.value})}
         >
-          {this.props.templates.map(template => (
+          {this.props.storageTemplates.map(template => (
             <Radio.Button
               key={template.id}
               value={template.id}
@@ -95,7 +95,7 @@ export default class Storage extends React.Component {
   }
 
   _newStorageTemplateId() {
-    return this.state.newStorageTemplateId || (this.props.templates[0] || {}).id;
+    return this.state.newStorageTemplateId || (this.props.storageTemplates[0] || {}).id;
   }
 
   _newStorageAttrs() {

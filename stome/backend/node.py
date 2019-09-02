@@ -33,6 +33,13 @@ class Node:
     def type(self):
         return NodeType.Dir if os.path.isdir(self._abspath) else NodeType.File
 
+    def move(self, dst):
+        dir_path = os.path.dirname(dst.path)
+        dst_dir = Dir(dir_path)
+        if not dst_dir:
+            dst_dir.create()
+        os.replace(self._abspath, dst._abspath)
+
     def delete(self):
         if self.type == NodeType.Dir:
             Dir(self.path).delete()
@@ -49,6 +56,13 @@ class Node:
     def __repr__(self):
         return f'{self.__class__.__name__}(path={self.path})'
 
+    def __iter__(self):
+        return iter([
+            ('type', self.type.value),
+            ('path', self.path),
+            ('name', self.fname),
+        ])
+
 
 class Dir(Node):
 
@@ -56,18 +70,24 @@ class Dir(Node):
         os.makedirs(self._abspath)
 
     def delete(self):
-        for node in self.children:
+        for node in self.nodes:
             node.delete()
         os.rmdir(self._abspath)
 
     def list(self):
-        return [{
-            'name': node.fname,
-            'type': node.type,
-        } for node in self.children]
+        dirs = []
+        files = []
+        for node in self.nodes:
+            if node.type == NodeType.Dir:
+                dirs.append(node)
+            else:
+                files.append(node)
+        dirs.sort(key=lambda d: d.fname)
+        files.sort(key=lambda f: f.fname)
+        return dirs, files
 
     @property
-    def children(self):
+    def nodes(self):
         return [Node(os.path.join(self.path, fname)) for fname in os.listdir(self._abspath)]
 
 

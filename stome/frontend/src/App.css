@@ -8,6 +8,9 @@ body {
 
 .layout-content {
   display: flex;
+  flex: 1;
+  background-color: white;
+  margin: 1em;
 }
 
 .layout-content > * {
@@ -28,10 +31,6 @@ body {
   flex-wrap: wrap;
 }
 
-.horz.space-between {
-  justify-content: space-between;
-}
-
 .vert {
   display: flex;
   flex-direction: column;
@@ -42,16 +41,8 @@ body {
   align-items: stretch;
 }
 
-.clickable:hover{
-  cursor: pointer;
-  background: #ddd;
-}
-
-.selected-list-item {
-  background: #eee;
-}
-
-.explorer-tree li {
-  margin: 0;
-  /*padding: 0;*/
+.logo {
+  color: #ddd;
+  font-weight: bold;
+  font-size: 1.3em;
 }
