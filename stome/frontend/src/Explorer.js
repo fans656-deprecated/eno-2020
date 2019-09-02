@@ -22,6 +22,7 @@ export default class Explorer extends React.Component {
       renameModalNewName: '',
     };
     this.fileInput = React.createRef();
+    getTransferManager().onUploadFinished = this.onUploadFinished;
   }
 
   componentDidMount = () => {
@@ -54,13 +55,8 @@ export default class Explorer extends React.Component {
   renderNav = () => {
     return (
       <Input.Group className="horz">
-        <Button title="Current directory"
-          onClick={this.onCurrentDirectory}
-        >.</Button>
-        <Button title="Parent directory"
-          disabled={this.state.currentPath === '/'}
-          onClick={this.filesystem.cdUp}
-        >.. </Button>
+        <Button title="Current directory" onClick={this.onCurrentDirectory}>.</Button>
+        <Button title="Parent directory" onClick={this.filesystem.cdUp}>.. </Button>
         <Input className="mono"
           value={this.state.currentPath}
           onChange={ev => this.setState({currentPath: ev.target.value})}
@@ -97,6 +93,7 @@ export default class Explorer extends React.Component {
           multiple
           onChange={ev => {
             getTransferManager().uploadFiles(this.state.currentPath, ev.target.files);
+            this.fileInput.current.value = null;
           }}
         />
       </Input.Group>
@@ -231,6 +228,18 @@ export default class Explorer extends React.Component {
       currentPath: currentDir.path,
       nodes: nodes,
       selectedPaths: [],
+    });
+  }
+
+  onUploadFinished = (transfer) => {
+    // TODO: this is not extensible
+    this.setState({
+      nodes: [...this.state.nodes, {
+        key: transfer.path,
+        path: transfer.path,
+        name: transfer.name,
+        type: 'file',
+      }],
     });
   }
 }

@@ -1,5 +1,7 @@
 import uuidv4 from 'uuid/v4';
 
+import { noop } from './utils';
+
 export default function getTransferManager() {
   return transferManager;
 }
@@ -11,6 +13,7 @@ class TransferManager {
     this.idToTransfer = {};
     this.notifyTimerId = null;
     this.notifyDelayCount = 0;
+    this.onUploadFinished = noop;
     if (process.browser) {
       const eventSource = new EventSource('/api/transfer-event-source');
       eventSource.addEventListener('progress', (ev) => {
@@ -50,7 +53,6 @@ class TransferManager {
     }
     for (const transfer of this.transfers) {
       if (transfer.status == 'ready') {
-        console.log('start');
         transfer.start();
         break;
       }
@@ -170,6 +172,7 @@ class UploadTransfer {
     this.settled = true;
     if (status === 'finished') {
       this.manager.clearTransfer(this);
+      this.manager.onUploadFinished(this);
     }
     this.manager.startTransfer();
   }

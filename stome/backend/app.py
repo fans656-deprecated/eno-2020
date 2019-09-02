@@ -218,7 +218,14 @@ def transfer_event_source(request: Request):
     """
     SSE (Server Sent Event) endpoint for transfer events.
     """
-    return StreamingResponse(Transfer.stream(request), media_type='text/event-stream')
+    return StreamingResponse(
+        Transfer.stream(request),
+        media_type='text/event-stream',
+        headers={
+            'Cache-Control': 'no-cache',
+            'X-Accel-Buffering': 'no',
+        },
+    )
 
 
 app.mount('/_next', StaticFiles(directory='../frontend/out/_next', html=True))
