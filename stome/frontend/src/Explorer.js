@@ -224,6 +224,7 @@ export default class Explorer extends React.Component {
 
   onRefresh = (currentDir) => {
     const nodes = currentDir.nodes.map(node => ({...node, key: node.path}));
+    console.log('onRefresh', nodes);
     this.setState({
       currentPath: currentDir.path,
       nodes: nodes,
