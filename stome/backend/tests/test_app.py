@@ -19,6 +19,9 @@ def authed():
     app.get_user = orig_get_user
 
 
+# aborted upload shouldn't result in a partial file
+
+
 class TestUploadFile:
 
     def test_auth(self, client):

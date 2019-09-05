@@ -224,7 +224,6 @@ export default class Explorer extends React.Component {
 
   onRefresh = (currentDir) => {
     const nodes = currentDir.nodes.map(node => ({...node, key: node.path}));
-    console.log('onRefresh', nodes);
     this.setState({
       currentPath: currentDir.path,
       nodes: nodes,
@@ -234,14 +233,18 @@ export default class Explorer extends React.Component {
 
   onUploadFinished = (transfer) => {
     // TODO: this is not extensible
-    this.setState({
-      nodes: [...this.state.nodes, {
-        key: transfer.path,
-        path: transfer.path,
-        name: transfer.name,
-        type: 'file',
-      }],
-    });
+    // and wrong: you should check if the file is in current dir
+    const path = transfer.path;
+    if (!this.filesystem.currentDir.getNodeByPath(path)) {
+      this.setState({
+        nodes: [...this.state.nodes, {
+          key: path,
+          path: path,
+          name: transfer.name,
+          type: 'file',
+        }],
+      });
+    }
   }
 }
 
