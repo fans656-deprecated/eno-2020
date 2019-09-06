@@ -69,3 +69,22 @@ class TestUploadFile:
         #   2. at different path
         # then delete one should not affect the other one
         pass
+
+
+class TestStorage:
+
+    def test_authed(self, client):
+        assert client.post('/api/storages', json={
+            'name': 'foo',
+            'template_id': 1,
+        }).status_code == 401
+
+    def test_create_storage(self, client, authed):
+        assert client.post('/api/storages').status_code == 422
+        assert client.post('/api/storages', json={}).status_code == 422
+        assert client.post('/api/storages', json={'name': ''}).status_code == 422
+        assert client.post('/api/storages', json={'name': 'foo'}).status_code == 422
+        assert client.post('/api/storages', json={
+            'name': 'foo',
+            'template_id': 1,
+        }).status_code == 200

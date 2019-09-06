@@ -10,6 +10,7 @@ from node import Node, File, Dir, NodeType
 from utils import get_user
 from model import Target, StorageModel, SyncModel, MoveModel
 from transfer import Transfer
+import storage as storage_module
 
 
 app = FastAPI(
@@ -177,27 +178,12 @@ def get_storages(request: Request):
 @app.post('/api/storages')
 def create_storage(storage: StorageModel, request: Request):
     ensure_me(request)
-    print(dict(storage))
+    storage_module.create(storage)
 
 
 @app.get('/api/storage-templates')
 def get_storage_templates():
-    return {
-        'data': [
-            {
-                'name': 'Amazon S3',
-                'id': '1',
-            },
-            {
-                'name': 'Dropbox',
-                'id': '2',
-            },
-            {
-                'name': 'Github',
-                'id': '3',
-            },
-        ],
-    }
+    return {'data': storage_module.TEMPLATES}
 
 
 @app.post('/api/sync-to-storage')

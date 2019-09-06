@@ -2,6 +2,8 @@ import React from 'react';
 import { Radio, Modal, Card, Divider, Table, Button, Input, List, message } from 'antd';
 import yaml from 'js-yaml';
 
+import { error } from './utils';
+
 export default class Storage extends React.Component {
   constructor(props) {
     super(props);
@@ -26,7 +28,7 @@ export default class Storage extends React.Component {
         >
           <Table
             pagination={false}
-            columns={STORAGE_COLUMNS}
+            columns={this._getStorageTableColumns()}
             dataSource={this.props.storages}
           />
         </Card>
@@ -41,6 +43,7 @@ export default class Storage extends React.Component {
         title="New storage"
         visible={this.state.newStorageModalVisible}
         closable={false}
+        okText="Create"
         onOk={this.createNewStorage}
         onCancel={() => this.setState({newStorageModalVisible: false})}
       >
@@ -62,7 +65,7 @@ export default class Storage extends React.Component {
           onChange={e => this.setState({newStorageName: e.target.value})}
         />
         <Input.TextArea
-          placeholder="Enter storage config here"
+          placeholder="Enter storage config here (in YAML format)"
           rows={15}
           style={{fontFamily: 'Consolas'}}
           value={this.state.newStorageAttrs}
@@ -90,7 +93,7 @@ export default class Storage extends React.Component {
     if (res.status === 200) {
       this.setState({newStorageModalVisible: false}, this.props.storagesChanged);
     } else {
-      message.error(`Failed to create storage (${res.status})`);
+      error(`Failed to create storage (${res.status})`, await res.text());
     }
   }
 
@@ -107,31 +110,33 @@ export default class Storage extends React.Component {
     }
     return attrs || {};
   }
-}
 
-const STORAGE_COLUMNS = [
-  {
-    title: 'Name',
-    dataIndex: 'name',
-  },
-  {
-    title: 'Type',
-    dataIndex: 'template.name',
-  },
-  {
-    title: 'Size',
-    dataIndex: 'size',
-  },
-  {
-    title: 'Actions',
-    render: (_, storage) => {
-      return (
-        <span>
-          <a>Edit</a>
-          <Divider type="vertical"/>
-          <a>Delete</a>
-        </span>
-      );
-    },
-  },
-];
+  _getStorageTableColumns = () => {
+    return [
+      {
+        title: 'Name',
+        dataIndex: 'name',
+      },
+      {
+        title: 'Type',
+        dataIndex: 'template.name',
+      },
+      {
+        title: 'Size',
+        dataIndex: 'size',
+      },
+      {
+        title: 'Actions',
+        render: (_, storage) => {
+          return (
+            <span>
+              <a>Edit</a>
+              <Divider type="vertical"/>
+              <a>Delete</a>
+            </span>
+          );
+        },
+      },
+    ]
+  }
+}
